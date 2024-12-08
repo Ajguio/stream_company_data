@@ -14,10 +14,17 @@ st.text('1. Receive historical data from CSV files')
 st.text('2. Upload these files to the new DB')
 st.text('3. Insert batch transactions (1 up to 1000 rows) with one request')
 
+# Mapeo de tablas y encabezados
+TABLE_HEADERS = {
+    "departments.csv": ["id", "department"],
+    "jobs.csv": ["id", "job"],
+    "hired_employees.csv": ["id", "name", "datetime", "department_id", "job_id"]
+}
+
 # Conexión a Snowflake
 def get_snowflake_connection():
     try:
-        conn = snowflake.connector.connect(
+       conn = snowflake.connector.connect(
         user='AJGFONSECA',
         password='Cu3nt4d3pr43bA;3',
         account='KWB93695',
@@ -31,14 +38,10 @@ def get_snowflake_connection():
         return None
 
 # Función para limpiar y preparar los datos
-def clean_dataframe(dataframe):
-    # Reemplazar NaN con valores None compatibles con Snowflake
-    dataframe = dataframe.where(pd.notnull(dataframe), None)
-
-    # Convertir columnas de tipo fecha y objeto a cadenas
-    for col in dataframe.select_dtypes(include=['datetime', 'object']).columns:
-        dataframe[col] = dataframe[col].astype(str)
-
+def clean_dataframe(dataframe, table_name):
+    headers = TABLE_HEADERS[table_name]
+    dataframe.columns = headers  # Asignar encabezados manualmente
+    dataframe = dataframe.where(pd.notnull(dataframe), None)  # Reemplazar NaN con None
     return dataframe
 
 # Función para insertar datos en la tabla correspondiente
@@ -51,15 +54,15 @@ def insert_data_to_snowflake(table_name, dataframe):
         cursor = conn.cursor()
 
         # Limpiar datos antes de insertar
-        dataframe = clean_dataframe(dataframe)
+        dataframe = clean_dataframe(dataframe, table_name)
 
         # Generar consulta con marcadores de posición
-        placeholders = ', '.join(['%s'] * len(dataframe.columns))
+        placeholders = ', '.join(['?'] * len(dataframe.columns))
         columns = ', '.join(dataframe.columns)
         sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
 
         # Convertir DataFrame a lista de tuplas
-        data = [tuple(x) for x in dataframe.to_numpy()]
+        data = [tuple(row) for row in dataframe.to_numpy()]
 
         # Ejecutar la inserción en bloque
         cursor.executemany(sql, data)
@@ -72,7 +75,6 @@ def insert_data_to_snowflake(table_name, dataframe):
         st.error(f"Error inserting into {table_name}: {e}")
         return False
 
-
 # Cargar archivos CSV desde la interfaz
 st.header('Upload CSV Files')
 
@@ -81,20 +83,17 @@ uploaded_file = st.file_uploader("Upload a CSV file", type=['csv'])
 if uploaded_file is not None:
     try:
         file_name = uploaded_file.name
-        dataframe = pd.read_csv(uploaded_file)
 
-        # Determinar la tabla destino
-        if file_name == 'departments.csv':
-            table_name = 'departments'
-        elif file_name == 'hired_employees.csv':
-            table_name = 'hired_employees'
-        elif file_name == 'jobs.csv':
-            table_name = 'jobs'
-        else:
+        # Verificar si el archivo está mapeado
+        if file_name not in TABLE_HEADERS:
             st.error("The file does not match any expected table.")
-            table_name = None
+        else:
+            # Leer el archivo sin encabezado
+            dataframe = pd.read_csv(uploaded_file, header=None)
 
-        if table_name:
+            # Determinar la tabla destino
+            table_name = file_name.replace(".csv", "")
+
             st.write(f"Inserting data into table: {table_name}")
             success = insert_data_to_snowflake(table_name, dataframe)
 

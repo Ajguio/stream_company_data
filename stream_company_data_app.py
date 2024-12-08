@@ -38,11 +38,13 @@ def insert_data_to_snowflake(table_name, dataframe):
             return False
 
         cursor = conn.cursor()
-        columns = ', '.join(dataframe.columns)
+
+        # Generar consulta con marcadores de posición
         placeholders = ', '.join(['?'] * len(dataframe.columns))
+        columns = ', '.join(dataframe.columns)
         sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
 
-        # Insertar en bloque
+        # Ejecutar la inserción en bloque
         cursor.executemany(sql, dataframe.values.tolist())
 
         conn.commit()
@@ -52,6 +54,7 @@ def insert_data_to_snowflake(table_name, dataframe):
     except Exception as e:
         st.error(f"Error inserting into {table_name}: {e}")
         return False
+
 
 # Cargar archivos CSV desde la interfaz
 st.header('Upload CSV Files')

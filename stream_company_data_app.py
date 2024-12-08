@@ -18,12 +18,12 @@ st.text('3. Insert batch transactions (1 up to 1000 rows) with one request')
 def get_snowflake_connection():
     try:
         conn = snowflake.connector.connect(
-            user='AJGFONSECA',
-            password='Cu3nt4d3pr43bA;3',
-            account='KWB93695',
-            warehouse='compute_wh',
-            database='company_data',
-            schema='hiring_data'
+        user='AJGFONSECA',
+        password='Cu3nt4d3pr43bA;3',
+        account='KWB93695',
+        warehouse='compute_wh',
+        database='company_data',
+        schema='hiring_data'
         )
         return conn
     except Exception as e:
@@ -32,11 +32,13 @@ def get_snowflake_connection():
 
 # Función para limpiar y preparar los datos
 def clean_dataframe(dataframe):
-    # Reemplazar NaN con valores nulos compatibles con Snowflake
-    dataframe = dataframe.fillna(None)
-    # Convertir tipos incompatibles (e.g., fechas)
-    for col in dataframe.select_dtypes(['datetime']).columns:
+    # Reemplazar NaN con valores None compatibles con Snowflake
+    dataframe = dataframe.where(pd.notnull(dataframe), None)
+
+    # Convertir columnas de tipo fecha y objeto a cadenas
+    for col in dataframe.select_dtypes(include=['datetime', 'object']).columns:
         dataframe[col] = dataframe[col].astype(str)
+
     return dataframe
 
 # Función para insertar datos en la tabla correspondiente

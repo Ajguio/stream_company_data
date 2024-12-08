@@ -24,13 +24,13 @@ TABLE_HEADERS = {
 # Conexión a Snowflake
 def get_snowflake_connection():
     try:
-       conn = snowflake.connector.connect(
-        user='AJGFONSECA',
-        password='Cu3nt4d3pr43bA;3',
-        account='KWB93695',
-        warehouse='compute_wh',
-        database='company_data',
-        schema='hiring_data'
+        conn = snowflake.connector.connect(
+            user='AJGFONSECA',
+            password='Cu3nt4d3pr43bA;3',
+            account='KWB93695',
+            warehouse='compute_wh',
+            database='company_data',
+            schema='hiring_data'
         )
         return conn
     except Exception as e:

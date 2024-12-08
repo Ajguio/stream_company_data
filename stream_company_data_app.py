@@ -3,7 +3,7 @@ import pandas as pd
 import sqlite3  # O usa tu librería de conexión a la base de datos preferida
 
 # Título principal
-st.title('My Parents New Healthy Diner')
+st.title('My Parents New Healthy Dinexxxxxxxxxxxxr')
 
 # Encabezado del menú
 st.header('Breakfast Menu')

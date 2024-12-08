@@ -1,4 +1,5 @@
 import streamlit
+import pandas
 
 # Título principal
 streamlit.title('My Parents New Healthy Diner')

@@ -26,17 +26,10 @@ TABLE_HEADERS = {
     "hired_employees.csv": ["id", "name", "datetime", "department_id", "job_id"]
 }
 
-# Conexión a Snowflake
+# Conexión a Snowflake usando streamlit.secrets
 def get_snowflake_connection():
     try:
-        conn = snowflake.connector.connect(
-            user='AJGFONSECA',
-            password='Cu3nt4d3pr43bA;3',
-            account='KWB93695',
-            warehouse='compute_wh',
-            database='company_data',
-            schema='hiring_data'
-        )
+        conn = snowflake.connector.connect(**st.secrets["snowflake"])
         return conn
     except Exception as e:
         st.error(f"Error connecting to Snowflake: {e}")
@@ -62,19 +55,16 @@ def insert_data_to_snowflake(table_name, dataframe):
         dataframe = clean_dataframe(dataframe, table_name)
 
         # Generar consulta con marcadores de posición
-        placeholders = ', '.join(['?'] * len(dataframe.columns))
+        placeholders = ', '.join(['%s'] * len(dataframe.columns))
         columns = ', '.join(dataframe.columns)
         sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
 
         # Convertir DataFrame a lista de tuplas
         data = [tuple(row) for row in dataframe.itertuples(index=False, name=None)]
 
-        # **Impresión de Diagnóstico**
+        # **DIAGNÓSTICO**
         st.write("Generated SQL:", sql)
         st.write("Prepared Data (First 5 rows):", data[:5] if data else "No data")
-        print("Generated SQL:", sql)
-        print("Data Columns:", dataframe.columns)
-        print("Prepared Data Sample:", data[:5] if data else "No data")
 
         # Ejecutar la inserción en bloque
         cursor.executemany(sql, data)
@@ -85,8 +75,19 @@ def insert_data_to_snowflake(table_name, dataframe):
         return True
     except Exception as e:
         st.error(f"Error inserting into {table_name}: {e}")
-        print(f"Error inserting into {table_name}: {e}")
         return False
+
+# Test de conexión a Snowflake
+if st.button("Test Snowflake Connection"):
+    try:
+        conn = get_snowflake_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT CURRENT_USER(), CURRENT_ACCOUNT(), CURRENT_REGION()")
+        my_data_row = cursor.fetchone()
+        st.text("Hello from Snowflake:")
+        st.text(my_data_row)
+    except Exception as e:
+        st.error(f"Error testing Snowflake connection: {e}")
 
 # Cargar archivos CSV desde la interfaz
 st.header('Upload CSV Files')
@@ -120,4 +121,3 @@ if uploaded_file is not None:
                 st.error(f"Failed to insert data into {table_name}.")
     except Exception as e:
         st.error(f"Error processing the file: {e}")
-        print(f"Error processing the file: {e}")

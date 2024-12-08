@@ -1,30 +1,52 @@
 import streamlit as st
 import pandas as pd
-import sqlite3  # O usa tu librería de conexión a la base de datos preferida
+import snowflake.connector
 
 # Título principal
-st.title('My Parents New Healthy Dinexxxxxxxxxxxxr')
+st.title('Globant’s Data Engineering Coding Challenge')
 
 # Encabezado del menú
-st.header('Breakfast Menu')
+st.header('DB migration with 3 different tables (departments, jobs, employees')
 
 # Elementos del menú
-st.text('Omega 3 & Blueberry Oatmeal')
-st.text('Kale, Spinach & Rocket Smoothie')
-st.text('Hard-Boiled Free-Range Egg')
+st.text('1. Receive historical data from CSV files')
+st.text('2. Upload these files to the new DB')
+st.text('3. Be able to insert batch transactions (1 up to 1000 rows) with one request You')
 
-# Conexión a la base de datos (reemplaza con tu configuración)
-def get_db_connection():
-    # Conéctate a tu base de datos
-    # Ejemplo: return psycopg2.connect("dbname=test user=postgres")
-    conn = sqlite3.connect('example.db')  # Base de datos local para pruebas
-    return conn
+# Conexión a Snowflake
+def get_snowflake_connection():
+    try:
+        conn = snowflake.connector.connect(
+            user='YOUR_SNOWFLAKE_USER',
+            password='YOUR_SNOWFLAKE_PASSWORD',
+            account='YOUR_SNOWFLAKE_ACCOUNT',
+            warehouse='YOUR_WAREHOUSE',
+            database='YOUR_DATABASE',
+            schema='YOUR_SCHEMA'
+        )
+        return conn
+    except Exception as e:
+        st.error(f"Error al conectar con Snowflake: {e}")
+        return None
 
 # Función para insertar datos en la tabla correspondiente
-def insert_data_to_table(table_name, dataframe):
+def insert_data_to_snowflake(table_name, dataframe):
     try:
-        conn = get_db_connection()
-        dataframe.to_sql(table_name, conn, if_exists='append', index=False)
+        conn = get_snowflake_connection()
+        if conn is None:
+            return False
+
+        # Crear un cursor y generar las sentencias de inserción
+        cursor = conn.cursor()
+
+        for _, row in dataframe.iterrows():
+            placeholders = ', '.join(['%s'] * len(row))
+            columns = ', '.join(dataframe.columns)
+            sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
+            cursor.execute(sql, tuple(row))
+
+        conn.commit()
+        cursor.close()
         conn.close()
         return True
     except Exception as e:
@@ -59,12 +81,6 @@ if uploaded_file is not None:
         # Si se reconoce el archivo, insertar los datos en la tabla correspondiente
         if table_name:
             st.write(f"Insertando datos en la tabla: {table_name}")
-            success = insert_data_to_table(table_name, dataframe)
+            success = insert_data_to_snowflake(table_name, dataframe)
 
             if success:
-                st.success(f"Datos insertados correctamente en la tabla {table_name}.")
-                st.dataframe(dataframe)
-            else:
-                st.error(f"No se pudo insertar en la tabla {table_name}.")
-    except Exception as e:
-        st.error(f"Error al procesar el archivo: {e}")

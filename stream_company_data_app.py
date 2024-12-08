@@ -18,7 +18,7 @@ st.text('3. Insert batch transactions (1 up to 1000 rows) with one request')
 def get_snowflake_connection():
     try:
         conn = snowflake.connector.connect(
-           user='AJGFONSECA',
+            user='AJGFONSECA',
             password='Cu3nt4d3pr43bA;3',
             account='KWB93695',
             warehouse='compute_wh',
@@ -30,6 +30,15 @@ def get_snowflake_connection():
         st.error(f"Error connecting to Snowflake: {e}")
         return None
 
+# Función para limpiar y preparar los datos
+def clean_dataframe(dataframe):
+    # Reemplazar NaN con valores nulos compatibles con Snowflake
+    dataframe = dataframe.fillna(None)
+    # Convertir tipos incompatibles (e.g., fechas)
+    for col in dataframe.select_dtypes(['datetime']).columns:
+        dataframe[col] = dataframe[col].astype(str)
+    return dataframe
+
 # Función para insertar datos en la tabla correspondiente
 def insert_data_to_snowflake(table_name, dataframe):
     try:
@@ -39,13 +48,19 @@ def insert_data_to_snowflake(table_name, dataframe):
 
         cursor = conn.cursor()
 
+        # Limpiar datos antes de insertar
+        dataframe = clean_dataframe(dataframe)
+
         # Generar consulta con marcadores de posición
-        placeholders = ', '.join(['?'] * len(dataframe.columns))
+        placeholders = ', '.join(['%s'] * len(dataframe.columns))
         columns = ', '.join(dataframe.columns)
         sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
 
+        # Convertir DataFrame a lista de tuplas
+        data = [tuple(x) for x in dataframe.to_numpy()]
+
         # Ejecutar la inserción en bloque
-        cursor.executemany(sql, dataframe.values.tolist())
+        cursor.executemany(sql, data)
 
         conn.commit()
         cursor.close()

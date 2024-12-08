@@ -1,32 +1,3 @@
-import streamlit as st
-import pandas as pd
-import snowflake.connector
-
-# Título principal
-st.title('Globant’s Data Engineering Coding Challenge')
-
-# Encabezado del menú
-st.header('DB migration with 3 different tables (departments, jobs, employees)')
-
-# Elementos del menú
-st.text('1. Receive historical data from CSV files')
-st.text('2. Upload these files to the new DB')
-st.text('3. Insert batch transactions (1 up to 1000 rows) with one request')
-
-# Mapeo de archivos a tablas y encabezados
-FILE_TABLE_MAPPING = {
-    "departments.csv": "departments",
-    "jobs.csv": "jobs",
-    "hired_employees.csv": "hired_employees"
-}
-
-TABLE_HEADERS = {
-    "departments.csv": ["id", "department"],
-    "jobs.csv": ["id", "job"],
-    "hired_employees.csv": ["id", "name", "datetime", "department_id", "job_id"]
-}
-
-# Conexión a Snowflake usando streamlit.secrets
 def get_snowflake_connection():
     try:
         conn = snowflake.connector.connect(**st.secrets["snowflake"])
@@ -51,15 +22,14 @@ def insert_data_to_snowflake(table_name, dataframe):
 
         cursor = conn.cursor()
 
-        # Limpiar datos antes de insertar
-        dataframe = clean_dataframe(dataframe, table_name)
-
-        # Insertar fila por fila directamente
+        # Insertar el DataFrame directamente usando Snowflake
         for _, row in dataframe.iterrows():
-            values = ', '.join([f"'{str(val)}'" if val is not None else "NULL" for val in row])
-            sql = f"INSERT INTO {table_name} VALUES ({values})"
-            st.write(f"Executing SQL: {sql}")  # Mostrar en la interfaz
-            cursor.execute(sql)  # Ejecutar inserción
+            values = tuple(row)
+            placeholders = ', '.join(['%s'] * len(row))
+            sql = f"INSERT INTO {table_name} VALUES ({placeholders})"
+
+            # Ejecutar el insert
+            cursor.execute(sql, values)
 
         conn.commit()
         cursor.close()
@@ -85,6 +55,10 @@ if uploaded_file is not None:
             # Leer el archivo sin encabezado
             dataframe = pd.read_csv(uploaded_file, header=None)
 
+            # Mostrar contenido del DataFrame cargado
+            st.write("Uploaded DataFrame:")
+            st.dataframe(dataframe)
+
             # Determinar la tabla destino
             table_name = FILE_TABLE_MAPPING[file_name]
 
@@ -96,7 +70,6 @@ if uploaded_file is not None:
 
             if success:
                 st.success(f"Data successfully inserted into {table_name}.")
-                st.dataframe(dataframe)
             else:
                 st.error(f"Failed to insert data into {table_name}.")
     except Exception as e:

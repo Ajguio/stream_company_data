@@ -17,12 +17,12 @@ st.text('3. Be able to insert batch transactions (1 up to 1000 rows) with one re
 def get_snowflake_connection():
     try:
         conn = snowflake.connector.connect(
-            user='YOUR_SNOWFLAKE_USER',
-            password='YOUR_SNOWFLAKE_PASSWORD',
-            account='YOUR_SNOWFLAKE_ACCOUNT',
-            warehouse='YOUR_WAREHOUSE',
-            database='YOUR_DATABASE',
-            schema='YOUR_SCHEMA'
+            user='AJGFONSECA',
+            password='Cu3nt4d3pr43bA;3',
+            account='KWB93695',
+            warehouse='compute_wh',
+            database='company_data',
+            schema='hiring_data'
         )
         return conn
     except Exception as e:

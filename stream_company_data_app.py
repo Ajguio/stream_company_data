@@ -13,4 +13,5 @@ streamlit.text('Kale, Spinach & Rocket Smoothie')
 streamlit.text('Hard-Boiled Free-Range Egg')
 
 my_fruit_list = pandas.read_csv("https://glchallenge.s3.us-west-1.amazonaws.com/filesemployees/hired_employees/hired_employees.csv")
+streamlit.dataframe (my_fruit_list)
 

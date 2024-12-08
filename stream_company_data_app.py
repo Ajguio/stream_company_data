@@ -1,32 +1,33 @@
 import streamlit as st
 import pandas as pd
 import snowflake.connector
+import os
 
 # Título principal
 st.title('Globant’s Data Engineering Coding Challenge')
 
 # Encabezado del menú
-st.header('DB migration with 3 different tables (departments, jobs, employees')
+st.header('DB migration with 3 different tables (departments, jobs, employees)')
 
 # Elementos del menú
 st.text('1. Receive historical data from CSV files')
 st.text('2. Upload these files to the new DB')
-st.text('3. Be able to insert batch transactions (1 up to 1000 rows) with one request You')
+st.text('3. Insert batch transactions (1 up to 1000 rows) with one request')
 
 # Conexión a Snowflake
 def get_snowflake_connection():
     try:
         conn = snowflake.connector.connect(
-            user='AJGFONSECA',
-            password='Cu3nt4d3pr43bA;3',
-            account='KWB93695',
-            warehouse='compute_wh',
-            database='company_data',
-            schema='hiring_data'
+            user=os.getenv('SNOWFLAKE_USER'),
+            password=os.getenv('SNOWFLAKE_PASSWORD'),
+            account=os.getenv('SNOWFLAKE_ACCOUNT'),
+            warehouse=os.getenv('SNOWFLAKE_WAREHOUSE'),
+            database=os.getenv('SNOWFLAKE_DATABASE'),
+            schema=os.getenv('SNOWFLAKE_SCHEMA')
         )
         return conn
     except Exception as e:
-        st.error(f"Error al conectar con Snowflake: {e}")
+        st.error(f"Error connecting to Snowflake: {e}")
         return None
 
 # Función para insertar datos en la tabla correspondiente
@@ -36,38 +37,33 @@ def insert_data_to_snowflake(table_name, dataframe):
         if conn is None:
             return False
 
-        # Crear un cursor y generar las sentencias de inserción
         cursor = conn.cursor()
+        columns = ', '.join(dataframe.columns)
+        placeholders = ', '.join(['?'] * len(dataframe.columns))
+        sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
 
-        for _, row in dataframe.iterrows():
-            placeholders = ', '.join(['%s'] * len(row))
-            columns = ', '.join(dataframe.columns)
-            sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-            cursor.execute(sql, tuple(row))
+        # Insertar en bloque
+        cursor.executemany(sql, dataframe.values.tolist())
 
         conn.commit()
         cursor.close()
         conn.close()
         return True
     except Exception as e:
-        st.error(f"Error al insertar en la tabla {table_name}: {e}")
+        st.error(f"Error inserting into {table_name}: {e}")
         return False
 
 # Cargar archivos CSV desde la interfaz
-st.header('Carga de Archivos CSV')
+st.header('Upload CSV Files')
 
-uploaded_file = st.file_uploader("Sube un archivo CSV", type=['csv'])
+uploaded_file = st.file_uploader("Upload a CSV file", type=['csv'])
 
 if uploaded_file is not None:
-    # Leer el archivo subido
     try:
-        # Detectar el nombre del archivo
         file_name = uploaded_file.name
-        
-        # Leer el contenido del CSV
         dataframe = pd.read_csv(uploaded_file)
 
-        # Determinar la tabla destino según el nombre del archivo
+        # Determinar la tabla destino
         if file_name == 'departments.csv':
             table_name = 'departments'
         elif file_name == 'hired_employees.csv':
@@ -75,18 +71,17 @@ if uploaded_file is not None:
         elif file_name == 'jobs.csv':
             table_name = 'jobs'
         else:
-            st.error("El archivo no coincide con ninguna tabla esperada.")
+            st.error("The file does not match any expected table.")
             table_name = None
 
-        # Si se reconoce el archivo, insertar los datos en la tabla correspondiente
         if table_name:
-            st.write(f"Insertando datos en la tabla: {table_name}")
+            st.write(f"Inserting data into table: {table_name}")
             success = insert_data_to_snowflake(table_name, dataframe)
 
             if success:
-                st.success(f"Datos insertados correctamente en la tabla {table_name}.")
+                st.success(f"Data successfully inserted into {table_name}.")
                 st.dataframe(dataframe)
             else:
-                st.error(f"No se pudo insertar en la tabla {table_name}.")
+                st.error(f"Failed to insert data into {table_name}.")
     except Exception as e:
-        st.error(f"Error al procesar el archivo: {e}")
+        st.error(f"Error processing the file: {e}")

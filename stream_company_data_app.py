@@ -54,20 +54,12 @@ def insert_data_to_snowflake(table_name, dataframe):
         # Limpiar datos antes de insertar
         dataframe = clean_dataframe(dataframe, table_name)
 
-        # Generar consulta con marcadores de posición
-        placeholders = ', '.join(['%s'] * len(dataframe.columns))
-        columns = ', '.join(dataframe.columns)
-        sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-
-        # Convertir DataFrame a lista de tuplas
-        data = [tuple(row) for row in dataframe.itertuples(index=False, name=None)]
-
-        # **DIAGNÓSTICO**
-        st.write("Generated SQL:", sql)
-        st.write("Prepared Data (First 5 rows):", data[:5] if data else "No data")
-
-        # Ejecutar la inserción en bloque
-        cursor.executemany(sql, data)
+        # Insertar fila por fila directamente
+        for _, row in dataframe.iterrows():
+            values = ', '.join([f"'{str(val)}'" if val is not None else "NULL" for val in row])
+            sql = f"INSERT INTO {table_name} VALUES ({values})"
+            st.write(f"Executing SQL: {sql}")  # Mostrar en la interfaz
+            cursor.execute(sql)  # Ejecutar inserción
 
         conn.commit()
         cursor.close()
@@ -76,18 +68,6 @@ def insert_data_to_snowflake(table_name, dataframe):
     except Exception as e:
         st.error(f"Error inserting into {table_name}: {e}")
         return False
-
-# Test de conexión a Snowflake
-if st.button("Test Snowflake Connection"):
-    try:
-        conn = get_snowflake_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT CURRENT_USER(), CURRENT_ACCOUNT(), CURRENT_REGION()")
-        my_data_row = cursor.fetchone()
-        st.text("Hello from Snowflake:")
-        st.text(my_data_row)
-    except Exception as e:
-        st.error(f"Error testing Snowflake connection: {e}")
 
 # Cargar archivos CSV desde la interfaz
 st.header('Upload CSV Files')

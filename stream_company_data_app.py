@@ -1,17 +1,21 @@
-import streamlit
-import pandas
+import streamlit as st
+import pandas as pd
 
 # Título principal
-streamlit.title('My Parents New Healthy Diner')
+st.title('My Parents New Healthy Diner')
 
 # Encabezado del menú
-streamlit.header('Breakfast Menu')
+st.header('Breakfast Menu')
 
 # Elementos del menú
-streamlit.text('Omega 3 & Blueberry Oatmeal')
-streamlit.text('Kale, Spinach & Rocket Smoothie')
-streamlit.text('Hard-Boiled Free-Range Egg')
+st.text('Omega 3 & Blueberry Oatmeal')
+st.text('Kale, Spinach & Rocket Smoothie')
+st.text('Hard-Boiled Free-Range Egg')
 
-my_fruit_list = pandas.read_csv("https://glchallenge.s3.us-west-1.amazonaws.com/filesemployees/hired_employees/hired_employees.csv")
-streamlit.dataframe (my_fruit_list)
-
+# Cargar los datos desde la URL
+try:
+    csv_url = "https://glchallenge.s3.us-west-1.amazonaws.com/filesemployees/hired_employees/hired_employees.csv"
+    my_fruit_list = pd.read_csv(csv_url)
+    st.dataframe(my_fruit_list)  # Mostrar los datos en la interfaz
+except Exception as e:
+    st.error(f"Error al cargar el archivo CSV: {e}")

@@ -1,34 +1,4 @@
-import streamlit as st
-import pandas as pd
-import snowflake.connector
-import os
-
-# Título principal
-st.title('Globant’s Data Engineering Coding Challenge')
-
-# Encabezado del menú
-st.header('DB migration with 3 different tables (departments, jobs, employees)')
-
-# Elementos del menú
-st.text('1. Receive historical data from CSV files')
-st.text('2. Upload these files to the new DB')
-st.text('3. Insert batch transactions (1 up to 1000 rows) with one request')
-
-# Mapeo de archivos a tablas y encabezados
-FILE_TABLE_MAPPING = {
-    "departments.csv": "departments",
-    "jobs.csv": "jobs",
-    "hired_employees.csv": "hired_employees"
-}
-
-TABLE_HEADERS = {
-    "departments.csv": ["id", "department"],
-    "jobs.csv": ["id", "job"],
-    "hired_employees.csv": ["id", "name", "datetime", "department_id", "job_id"]
-}
-
-# Conexión a Snowflake
-def get_snowflake_connection():
+get_snowflake_connection():
     try:
         conn = snowflake.connector.connect(
             user='AJGFONSECA',
@@ -43,13 +13,6 @@ def get_snowflake_connection():
         st.error(f"Error connecting to Snowflake: {e}")
         return None
 
-# Función para limpiar y preparar los datos
-def clean_dataframe(dataframe, file_name):
-    headers = TABLE_HEADERS[file_name]
-    dataframe.columns = headers  # Asignar encabezados manualmente
-    dataframe = dataframe.where(pd.notnull(dataframe), None)  # Reemplazar NaN con None
-    return dataframe
-
 # Función para insertar datos en la tabla correspondiente
 def insert_data_to_snowflake(table_name, dataframe):
     try:
@@ -57,59 +20,57 @@ def insert_data_to_snowflake(table_name, dataframe):
         if conn is None:
             return False
 
+        # Crear un cursor y generar las sentencias de inserción
         cursor = conn.cursor()
 
-        # Limpiar datos antes de insertar
-        dataframe = clean_dataframe(dataframe, table_name)
-
-        # Generar consulta con marcadores de posición
-        placeholders = ', '.join(['?'] * len(dataframe.columns))
-        columns = ', '.join(dataframe.columns)
-        sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-
-        # Convertir DataFrame a lista de tuplas
-        data = dataframe.values.tolist()
-
-        # Ejecutar la inserción en bloque
-        cursor.executemany(sql, data)
+        for _, row in dataframe.iterrows():
+            placeholders = ', '.join(['%s'] * len(row))
+            columns = ', '.join(dataframe.columns)
+            sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
+            cursor.execute(sql, tuple(row))
 
         conn.commit()
         cursor.close()
         conn.close()
         return True
     except Exception as e:
-        st.error(f"Error inserting into {table_name}: {e}")
+        st.error(f"Error al insertar en la tabla {table_name}: {e}")
         return False
 
 # Cargar archivos CSV desde la interfaz
-st.header('Upload CSV Files')
+st.header('Carga de Archivos CSV')
 
-uploaded_file = st.file_uploader("Upload a CSV file", type=['csv'])
+uploaded_file = st.file_uploader("Sube un archivo CSV", type=['csv'])
 
 if uploaded_file is not None:
+    # Leer el archivo subido
     try:
+        # Detectar el nombre del archivo
         file_name = uploaded_file.name
+        
+        # Leer el contenido del CSV
+        dataframe = pd.read_csv(uploaded_file)
 
-        # Verificar si el archivo está mapeado
-        if file_name not in FILE_TABLE_MAPPING:
-            st.error("The file does not match any expected table.")
+        # Determinar la tabla destino según el nombre del archivo
+        if file_name == 'departments.csv':
+            table_name = 'departments'
+        elif file_name == 'hired_employees.csv':
+            table_name = 'hired_employees'
+        elif file_name == 'jobs.csv':
+            table_name = 'jobs'
         else:
-            # Leer el archivo sin encabezado
-            dataframe = pd.read_csv(uploaded_file, header=None)
+            st.error("El archivo no coincide con ninguna tabla esperada.")
+            table_name = None
 
-            # Determinar la tabla destino
-            table_name = FILE_TABLE_MAPPING[file_name]
-
-            # Limpiar el DataFrame
-            dataframe = clean_dataframe(dataframe, file_name)
-
-            st.write(f"Inserting data into table: {table_name}")
+        # Si se reconoce el archivo, insertar los datos en la tabla correspondiente
+        if table_name:
+            st.write(f"Insertando datos en la tabla: {table_name}")
             success = insert_data_to_snowflake(table_name, dataframe)
 
             if success:
-                st.success(f"Data successfully inserted into {table_name}.")
+                st.success(f"Datos insertados correctamente en la tabla {table_name}.")
                 st.dataframe(dataframe)
             else:
-                st.error(f"Failed to insert data into {table_name}.")
+                st.error(f"No se pudo insertar en la tabla {table_name}.")
     except Exception as e:
-        st.error(f"Error processing the file: {e}")
+        st.error(f"Error al procesar el archivo: {e}")

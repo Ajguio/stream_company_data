@@ -28,7 +28,6 @@ TABLE_HEADERS = {
 }
 
 # Conexión a Snowflake
-# Conexión a Snowflake
 def get_snowflake_connection():
     try:
         conn = snowflake.connector.connect(
@@ -99,6 +98,17 @@ if uploaded_file is not None:
             table_name = FILE_TABLE_MAPPING[file_name]
 
             # Limpiar el DataFrame
-            dataframe = clea
+            dataframe = clean_dataframe(dataframe, file_name)
 
+            st.write(f"Inserting data into table: {table_name}")
+            success = insert_data_to_snowflake(table_name, dataframe)
 
+            if success:
+                st.success(f"Data successfully inserted into {table_name}.")
+                st.dataframe(dataframe)
+            else:
+                st.error(f"Failed to insert data into {table_name}.")
+    except Exception as e:
+        st.error(f"Error processing the file: {e}")
+
+        

@@ -59,13 +59,16 @@ def insert_data_to_snowflake(table_name, dataframe):
 
         cursor = conn.cursor()
 
+        # Limpiar datos antes de insertar
+        dataframe = clean_dataframe(dataframe, table_name)
+
         # Generar consulta con marcadores de posición
         placeholders = ', '.join(['?'] * len(dataframe.columns))
         columns = ', '.join(dataframe.columns)
         sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
 
         # Convertir DataFrame a lista de tuplas
-        data = [tuple(row) for row in dataframe.to_numpy()]
+        data = dataframe.values.tolist()
 
         # Ejecutar la inserción en bloque
         cursor.executemany(sql, data)
@@ -110,5 +113,3 @@ if uploaded_file is not None:
                 st.error(f"Failed to insert data into {table_name}.")
     except Exception as e:
         st.error(f"Error processing the file: {e}")
-
-        

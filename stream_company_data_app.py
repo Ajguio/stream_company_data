@@ -84,3 +84,9 @@ if uploaded_file is not None:
             success = insert_data_to_snowflake(table_name, dataframe)
 
             if success:
+                st.success(f"Datos insertados correctamente en la tabla {table_name}.")
+                st.dataframe(dataframe)
+            else:
+                st.error(f"No se pudo insertar en la tabla {table_name}.")
+    except Exception as e:
+        st.error(f"Error al procesar el archivo: {e}")

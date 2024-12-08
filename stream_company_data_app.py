@@ -69,13 +69,12 @@ def insert_data_to_snowflake(table_name, dataframe):
         # Convertir DataFrame a lista de tuplas
         data = [tuple(row) for row in dataframe.itertuples(index=False, name=None)]
 
-        # **DIAGNÓSTICO**
+        # **Impresión de Diagnóstico**
         st.write("Generated SQL:", sql)
-        st.write("Data Prepared for Insertion:", data[:5] if data else "No data")
-
-        # Imprimir para depuración
+        st.write("Prepared Data (First 5 rows):", data[:5] if data else "No data")
         print("Generated SQL:", sql)
-        print("Data Sample:", data[:5] if data else "No data")
+        print("Data Columns:", dataframe.columns)
+        print("Prepared Data Sample:", data[:5] if data else "No data")
 
         # Ejecutar la inserción en bloque
         cursor.executemany(sql, data)
@@ -121,3 +120,4 @@ if uploaded_file is not None:
                 st.error(f"Failed to insert data into {table_name}.")
     except Exception as e:
         st.error(f"Error processing the file: {e}")
+        print(f"Error processing the file: {e}")

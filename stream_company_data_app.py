@@ -28,7 +28,14 @@ def get_snowflake_connection():
 def clean_dataframe(dataframe, file_name):
     headers = TABLE_HEADERS[file_name]
     dataframe.columns = headers  # Asignar encabezados manualmente
-    dataframe = dataframe.where(pd.notnull(dataframe), None)  # Reemplazar NaN con None
+
+    # Reemplazar NaN o valores vacíos con None
+    dataframe = dataframe.where(pd.notnull(dataframe), None)
+
+    # Convertir columnas específicas si es necesario (ejemplo: datetime)
+    if "datetime" in dataframe.columns:
+        dataframe["datetime"] = pd.to_datetime(dataframe["datetime"], errors="coerce").where(pd.notnull(dataframe["datetime"]), None)
+
     return dataframe
 
 # Función para insertar datos en la tabla correspondiente

@@ -19,7 +19,7 @@ TABLE_HEADERS = {
 st.title('Globant’s Data Engineering Coding Challenge')
 
 # Encabezado del menú
-st.header('DB migration with 3 different tables (departments, jobs, employees')
+st.header('DB migration with 3 different tables (departments, jobs, employees)')
 
 # Elementos del menú
 st.text('1. Receive historical data from CSV files')

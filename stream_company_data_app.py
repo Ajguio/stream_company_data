@@ -120,7 +120,7 @@ st.header('Generate Report')
 if st.button('Generate Information'):
     st.write('Number of employees hired for each job and department in 2021 divided by quarter. The table must be ordered alphabetically by department and job.')
 
-    query = """
+    query1 = """
     SELECT 
         d.department AS department_name,
         j.job AS job_name,
@@ -147,17 +147,66 @@ if st.button('Generate Information'):
         conn = get_snowflake_connection()
         if conn is not None:
             cursor = conn.cursor()
-            cursor.execute(query)
-            results = cursor.fetchall()
+            cursor.execute(query1)
+            results1 = cursor.fetchall()
 
             # Obtener los nombres de las columnas
-            columns = [desc[0] for desc in cursor.description]
+            columns1 = [desc[0] for desc in cursor.description]
 
             # Crear un DataFrame con los resultados
-            report_df = pd.DataFrame(results, columns=columns)
+            report_df1 = pd.DataFrame(results1, columns=columns1)
 
             # Mostrar el DataFrame
-            st.dataframe(report_df)
+            st.dataframe(report_df1)
+
+            st.write('List of ids, name and number of employees hired of each department that hired more employees than the mean of employees hired in 2021 for all the departments, ordered by the number of employees hired (descending).')
+
+            query2 = """
+            WITH department_hires AS (
+                SELECT 
+                    d.id AS department_id,
+                    d.department AS department_name,
+                    COUNT(e.id) AS total_hires
+                FROM 
+                    hired_employees e
+                JOIN 
+                    departments d ON e.department_id = d.id
+                WHERE 
+                    EXTRACT(YEAR FROM e.datetime) = 2021
+                GROUP BY 
+                    d.id, d.department
+            ),
+            average_hires AS (
+                SELECT 
+                    AVG(total_hires) AS mean_hires
+                FROM 
+                    department_hires
+            )
+            SELECT 
+                dh.department_id,
+                dh.department_name,
+                dh.total_hires
+            FROM 
+                department_hires dh
+            CROSS JOIN 
+                average_hires ah
+            WHERE 
+                dh.total_hires > ah.mean_hires
+            ORDER BY 
+                dh.total_hires DESC;
+            """
+
+            cursor.execute(query2)
+            results2 = cursor.fetchall()
+
+            # Obtener los nombres de las columnas
+            columns2 = [desc[0] for desc in cursor.description]
+
+            # Crear un DataFrame con los resultados
+            report_df2 = pd.DataFrame(results2, columns=columns2)
+
+            # Mostrar el DataFrame
+            st.dataframe(report_df2)
 
             cursor.close()
             conn.close()

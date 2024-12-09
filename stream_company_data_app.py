@@ -117,100 +117,106 @@ if uploaded_file is not None:
 # Cargar archivos CSV desde la interfaz
 st.header('Generate Report')
 
+year = st.text_input('Enter the year for the reports:', key="year_input")
+
 if st.button('Generate Information'):
-    st.write('Number of employees hired for each job and department in 2021 divided by quarter. The table must be ordered alphabetically by department and job.')
+    if not year.isdigit():
+        st.error("Please enter a valid numeric year.")
+    else:
+        st.write(f"Number of employees hired for each job and department in {year} divided by quarter. The table must be ordered alphabetically by department and job.")
 
-    query1 = """
-    SELECT 
-        d.department AS department_name,
-        j.job AS job_name,
-        SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 1 THEN 1 ELSE 0 END) AS Q1,
-        SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 2 THEN 1 ELSE 0 END) AS Q2,
-        SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 3 THEN 1 ELSE 0 END) AS Q3,
-        SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 4 THEN 1 ELSE 0 END) AS Q4
-    FROM 
-        hired_employees e
-    JOIN 
-        departments d ON e.department_id = d.id
-    JOIN 
-        jobs j ON e.job_id = j.id
-    WHERE 
-        EXTRACT(YEAR FROM e.datetime) = 2021
-    GROUP BY 
-        d.department, j.job
-    ORDER BY 
-        d.department ASC, 
-        j.job ASC;
-    """
+        query1 = f"""
+        SELECT 
+            d.department AS department_name,
+            j.job AS job_name,
+            SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 1 THEN 1 ELSE 0 END) AS Q1,
+            SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 2 THEN 1 ELSE 0 END) AS Q2,
+            SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 3 THEN 1 ELSE 0 END) AS Q3,
+            SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 4 THEN 1 ELSE 0 END) AS Q4
+        FROM 
+            hired_employees e
+        JOIN 
+            departments d ON e.department_id = d.id
+        JOIN 
+            jobs j ON e.job_id = j.id
+        WHERE 
+            EXTRACT(YEAR FROM e.datetime) = {year}
+        GROUP BY 
+            d.department, j.job
+        ORDER BY 
+            d.department ASC, 
+            j.job ASC;
+        """
 
-    try:
-        conn = get_snowflake_connection()
-        if conn is not None:
-            cursor = conn.cursor()
-            cursor.execute(query1)
-            results1 = cursor.fetchall()
+        try:
+            conn = get_snowflake_connection()
+            if conn is not None:
+                cursor = conn.cursor()
+                cursor.execute(query1)
+                results1 = cursor.fetchall()
 
-            # Obtener los nombres de las columnas
-            columns1 = [desc[0] for desc in cursor.description]
+                # Obtener los nombres de las columnas
+                columns1 = [desc[0] for desc in cursor.description]
 
-            # Crear un DataFrame con los resultados
-            report_df1 = pd.DataFrame(results1, columns=columns1)
+                # Crear un DataFrame con los resultados
+                report_df1 = pd.DataFrame(results1, columns=columns1)
 
-            # Mostrar el DataFrame
-            st.dataframe(report_df1)
+                # Mostrar el DataFrame
+                st.dataframe(report_df1)
 
-            st.write('List of ids, name and number of employees hired of each department that hired more employees than the mean of employees hired in 2021 for all the departments, ordered by the number of employees hired (descending).')
+                st.write(f"List of ids, name and number of employees hired of each department that hired more employees than the mean of employees hired in {year} for all the departments, ordered by the number of employees hired (descending).")
 
-            query2 = """
-            WITH department_hires AS (
+                query2 = f"""
+                WITH department_hires AS (
+                    SELECT 
+                        d.id AS department_id,
+                        d.department AS department_name,
+                        COUNT(e.id) AS total_hires
+                    FROM 
+                        hired_employees e
+                    JOIN 
+                        departments d ON e.department_id = d.id
+                    WHERE 
+                        EXTRACT(YEAR FROM e.datetime) = {year}
+                    GROUP BY 
+                        d.id, d.department
+                ),
+                average_hires AS (
+                    SELECT 
+                        AVG(total_hires) AS mean_hires
+                    FROM 
+                        department_hires
+                )
                 SELECT 
-                    d.id AS department_id,
-                    d.department AS department_name,
-                    COUNT(e.id) AS total_hires
+                    dh.department_id,
+                    dh.department_name,
+                    dh.total_hires
                 FROM 
-                    hired_employees e
-                JOIN 
-                    departments d ON e.department_id = d.id
+                    department_hires dh
+                CROSS JOIN 
+                    average_hires ah
                 WHERE 
-                    EXTRACT(YEAR FROM e.datetime) = 2021
-                GROUP BY 
-                    d.id, d.department
-            ),
-            average_hires AS (
-                SELECT 
-                    AVG(total_hires) AS mean_hires
-                FROM 
-                    department_hires
-            )
-            SELECT 
-                dh.department_id,
-                dh.department_name,
-                dh.total_hires
-            FROM 
-                department_hires dh
-            CROSS JOIN 
-                average_hires ah
-            WHERE 
-                dh.total_hires > ah.mean_hires
-            ORDER BY 
-                dh.total_hires DESC;
-            """
+                    dh.total_hires > ah.mean_hires
+                ORDER BY 
+                    dh.total_hires DESC;
+                """
 
-            cursor.execute(query2)
-            results2 = cursor.fetchall()
+                cursor.execute(query2)
+                results2 = cursor.fetchall()
 
-            # Obtener los nombres de las columnas
-            columns2 = [desc[0] for desc in cursor.description]
+                # Obtener los nombres de las columnas
+                columns2 = [desc[0] for desc in cursor.description]
 
-            # Crear un DataFrame con los resultados
-            report_df2 = pd.DataFrame(results2, columns=columns2)
+                # Crear un DataFrame con los resultados
+                report_df2 = pd.DataFrame(results2, columns=columns2)
 
-            # Mostrar el DataFrame
-            st.dataframe(report_df2)
+                # Mostrar el DataFrame
+                st.dataframe(report_df2)
 
-            cursor.close()
-            conn.close()
-        else:
-            st.error("Failed to connect to Snowflake for the report.")
-    except Exception as e:
-        st.error(f"Error generating the report: {e}")
+                cursor.close()
+                conn.close()
+            else:
+                st.error("Failed to connect to Snowflake for the report.")
+        except Exception as e:
+            st.error(f"Error generating the report: {e}")
+

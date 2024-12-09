@@ -34,7 +34,7 @@ def clean_dataframe(dataframe, file_name):
 
     # Convertir columnas específicas si es necesario (ejemplo: datetime)
     if "datetime" in dataframe.columns:
-        dataframe["datetime"] = pd.to_datetime(dataframe["datetime"], errors="coerce").where(pd.notnull(dataframe["datetime"]), None)
+        dataframe["datetime"] = pd.to_datetime(dataframe["datetime"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S").where(pd.notnull(dataframe["datetime"]), None)
 
     return dataframe
 

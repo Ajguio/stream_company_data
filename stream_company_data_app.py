@@ -29,17 +29,14 @@ def clean_dataframe(dataframe, file_name):
     headers = TABLE_HEADERS[file_name]
     dataframe.columns = headers  # Asignar encabezados manualmente
 
-    # Reemplazar NaN o valores vacíos con None
-    dataframe = dataframe.where(pd.notnull(dataframe), None)
+    # Convertir NaN y valores vacíos a None
+    dataframe = dataframe.astype(object).where(pd.notnull(dataframe), None)
 
     # Manejar específicamente la columna datetime
     if "datetime" in dataframe.columns:
         dataframe["datetime"] = pd.to_datetime(
             dataframe["datetime"], errors="coerce"
         ).dt.strftime("%Y-%m-%d %H:%M:%S").where(pd.notnull(dataframe["datetime"]), None)
-
-    # Asegurarse de que todos los valores no válidos se conviertan en None
-    dataframe = dataframe.applymap(lambda x: None if x in [float('nan'), 'nan', 'NaN'] else x)
 
     return dataframe
 

@@ -32,9 +32,14 @@ def clean_dataframe(dataframe, file_name):
     # Reemplazar NaN o valores vacíos con None
     dataframe = dataframe.where(pd.notnull(dataframe), None)
 
-    # Convertir columnas específicas si es necesario (ejemplo: datetime)
+    # Manejar específicamente la columna datetime
     if "datetime" in dataframe.columns:
-        dataframe["datetime"] = pd.to_datetime(dataframe["datetime"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S").where(pd.notnull(dataframe["datetime"]), None)
+        dataframe["datetime"] = pd.to_datetime(
+            dataframe["datetime"], errors="coerce"
+        ).dt.strftime("%Y-%m-%d %H:%M:%S").where(pd.notnull(dataframe["datetime"]), None)
+
+    # Asegurarse de que todos los valores no válidos se conviertan en None
+    dataframe = dataframe.applymap(lambda x: None if x in [float('nan'), 'nan', 'NaN'] else x)
 
     return dataframe
 

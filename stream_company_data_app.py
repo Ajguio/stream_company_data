@@ -15,6 +15,18 @@ TABLE_HEADERS = {
     "hired_employees.csv": ["id", "name", "datetime", "department_id", "job_id"]
 }
 
+# Título principal
+st.title('Globant’s Data Engineering Coding Challenge')
+
+# Encabezado del menú
+st.header('DB migration with 3 different tables (departments, jobs, employees')
+
+# Elementos del menú
+st.text('1. Receive historical data from CSV files')
+st.text('2. Upload these files to the new DB')
+st.text('3. Be able to insert batch transactions (1 up to 1000 rows) with one request You')
+
+
 # Conexión a Snowflake usando streamlit.secrets
 def get_snowflake_connection():
     try:
@@ -101,3 +113,55 @@ if uploaded_file is not None:
                 st.error(f"Failed to insert data into {table_name}.")
     except Exception as e:
         st.error(f"Error processing the file: {e}")
+
+# Cargar archivos CSV desde la interfaz
+st.header('Generate Report')
+
+if st.button('Generate Information'):
+    st.write('Number of employees hired for each job and department in 2021 divided by quarter. The table must be ordered alphabetically by department and job.')
+
+    query = """
+    SELECT 
+        d.department AS department_name,
+        j.job AS job_name,
+        SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 1 THEN 1 ELSE 0 END) AS Q1,
+        SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 2 THEN 1 ELSE 0 END) AS Q2,
+        SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 3 THEN 1 ELSE 0 END) AS Q3,
+        SUM(CASE WHEN EXTRACT(QUARTER FROM e.datetime) = 4 THEN 1 ELSE 0 END) AS Q4
+    FROM 
+        hired_employees e
+    JOIN 
+        departments d ON e.department_id = d.id
+    JOIN 
+        jobs j ON e.job_id = j.id
+    WHERE 
+        EXTRACT(YEAR FROM e.datetime) = 2021
+    GROUP BY 
+        d.department, j.job
+    ORDER BY 
+        d.department ASC, 
+        j.job ASC;
+    """
+
+    try:
+        conn = get_snowflake_connection()
+        if conn is not None:
+            cursor = conn.cursor()
+            cursor.execute(query)
+            results = cursor.fetchall()
+
+            # Obtener los nombres de las columnas
+            columns = [desc[0] for desc in cursor.description]
+
+            # Crear un DataFrame con los resultados
+            report_df = pd.DataFrame(results, columns=columns)
+
+            # Mostrar el DataFrame
+            st.dataframe(report_df)
+
+            cursor.close()
+            conn.close()
+        else:
+            st.error("Failed to connect to Snowflake for the report.")
+    except Exception as e:
+        st.error(f"Error generating the report: {e}")

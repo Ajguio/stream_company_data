@@ -1,4 +1,6 @@
 Globant’s Data Engineering Coding Challenge
+
+
 Este repositorio contiene dos soluciones para el desafío técnico, una aplicación interactiva con Streamlit y un pipeline automatizado con Snowflake y AWS S3.
 
 Solución 1: Aplicación Interactiva con Streamlit
